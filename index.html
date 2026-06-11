@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Table System</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-100 p-4 font-sans max-w-2xl mx-auto">
+
+    <h1 class="text-2xl font-bold text-center text-gray-800 my-4">📦 Inventory Tracker</h1>
+
+    <div class="bg-white p-5 rounded-xl shadow-md mb-6">
+        <h2 id="form-title" class="text-base font-bold text-gray-700 mb-3">Add New Item</h2>
+        <form id="product-form" onsubmit="saveProduct(event)">
+            <input type="hidden" id="product-id">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Product Name</label>
+                    <input type="text" id="name" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Date Purchased</label>
+                    <input type="date" id="date" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Price ($)</label>
+                    <input type="number" id="price" step="0.01" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Quantity</label>
+                    <input type="number" id="qty" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">Snap / Upload Picture</label>
+                <input type="file" id="image-file" accept="image/*" class="w-full mt-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <div id="image-preview-container" class="mt-2 hidden">
+                    <img id="image-preview" src="" class="w-12 h-12 object-cover rounded-md border">
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white py-2 rounded-md font-semibold text-sm shadow hover:bg-blue-700 cursor-pointer">Save Item</button>
+                <button type="button" id="cancel-btn" onclick="resetForm()" class="w-full bg-gray-200 text-gray-700 py-2 rounded-md font-semibold text-sm hover:bg-gray-300 hidden cursor-pointer">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="mb-4">
+        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Search Inventory</label>
+        <input type="text" id="search" oninput="renderInventory()" placeholder="🔍 Type product name to filter instantly..." class="w-full p-2.5 bg-white rounded-lg shadow-sm border border-gray-300 focus:outline-blue-500 text-sm">
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-gray-100 border-b border-gray-200 text-gray-600 font-semibold text-xs uppercase">
+                        <th class="p-3">Pic</th>
+                        <th class="p-3">Product Details</th>
+                        <th class="p-3 text-right">Stock</th>
+                        <th class="p-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-table-body" class="divide-y divide-gray-100">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let inventory = JSON.parse(localStorage.getItem('table_inventory')) || [];
+        let currentBase64Image = "";
+
+        // Handle Image capturing and conversion to base64
+        document.getElementById('image-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    currentBase64Image = event.target.result;
+                    document.getElementById('image-preview').src = currentBase64Image;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Search and Render Table Function
+        function renderInventory() {
+            const tbody = document.getElementById('inventory-table-body');
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            const filteredItems = inventory.filter(item => 
+                item.name.toLowerCase().includes(searchTerm)
+            );
+
+            if (filteredItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 p-6 text-xs">No matching products found.</td></tr>`;
+                return;
+            }
+
+            filteredItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 transition-colors";
+                
+                const imgTag = item.image ? 
+                    `<img src="${item.image}" class="w-10 h-10 object-cover rounded border">` : 
+                    `<div class="w-10 h-10 bg-gray-100 border rounded flex items-center justify-center text-[10px] text-gray-400">None</div>`;
+
+                row.innerHTML = `
+                    <td class="p-3 w-14">${imgTag}</td>
+                    <td class="p-3">
+                        <span class="font-bold text-gray-800 block">${item.name}</span>
+                        <span class="text-xs text-gray-400 block">Purchased: ${item.date}</span>
+                        <span class="text-xs font-semibold text-blue-600 block mt-0.5">$${parseFloat(item.price).toFixed(2)}</span>
+                    </td>
+                    <td class="p-3 text-right font-mono font-bold text-gray-700">${item.qty}</td>
+                    <td class="p-3">
+                        <div class="flex justify-center gap-1.5">
+                            <button onclick="editProduct(${item.id})" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded font-medium cursor-pointer">Edit</button>
+                            <button onclick="deleteProduct(${item.id})" class="text-xs bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded font-medium cursor-pointer">Del</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Add or Update handler
+        function saveProduct(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('product-id').value;
+            const name = document.getElementById('name').value;
+            const price = document.getElementById('price').value;
+            const qty = document.getElementById('qty').value;
+            const date = document.getElementById('date').value;
+
+            if (id) {
+                // Edit Entry
+                const idx = inventory.findIndex(item => item.id == id);
+                if (idx !== -1) {
+                    const updatedImg = currentBase64Image || inventory[idx].image;
+                    inventory[idx] = { id: parseInt(id), name, price, qty, date, image: updatedImg };
+                }
+            } else {
+                // New Entry
+                inventory.push({ id: Date.now(), name, price, qty, date, image: currentBase64Image });
+            }
+
+            localStorage.setItem('table_inventory', JSON.stringify(inventory));
+            renderInventory();
+            resetForm();
+        }
+
+        // Pull row data back up into the form inputs
+        function editProduct(id) {
+            const item = inventory.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('product-id').value = item.id;
+            document.getElementById('name').value = item.name;
+            document.getElementById('price').value = item.price;
+            document.getElementById('qty').value = item.qty;
+            document.getElementById('date').value = item.date;
+            
+            if (item.image) {
+                document.getElementById('image-preview').src = item.image;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+                currentBase64Image = item.image;
+            } else {
+                document.getElementById('image-preview-container').classList.add('hidden');
+                currentBase64Image = "";
+            }
+
+            document.getElementById('form-title').innerText = "📝 Edit Item Mode";
+            document.getElementById('submit-btn').innerText = "Update Item Details";
+            document.getElementById('cancel-btn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll up to the form on phone screens
+        }
+
+        // Remove row completely
+        function deleteProduct(id) {
+            if (confirm("Permanently delete this row item?")) {
+                inventory = inventory.filter(i => i.id !== id);
+                localStorage.setItem('table_inventory', JSON.stringify(inventory));
+                renderInventory();
+                resetForm();
+            }
+        }
+
+        // Clear everything out
+        function resetForm() {
+            document.getElementById('product-form').reset();
+            document.getElementById('product-id').value = '';
+            currentBase64Image = "";
+            document.getElementById('image-preview-container').classList.add('hidden');
+            
+            document.getElementById('form-title').innerText = "Add New Item";
+            document.getElementById('submit-btn').innerText = "Save Item";
+            document.getElementById('cancel-btn').classList.add('hidden');
+        }
+
+        // Load initially
+        renderInventory();
+    </script>
+</body>
+</html>
