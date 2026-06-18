@@ -15,21 +15,30 @@
         <form id="product-form" onsubmit="saveProduct(event)">
             <input type="hidden" id="product-id">
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-500 uppercase">Product Name</label>
-                    <input type="text" id="name" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-500 uppercase">Date Purchased</label>
-                    <input type="date" id="date" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
-                </div>
+            <div class="mb-3">
+                <label class="block text-xs font-semibold text-gray-500 uppercase">Product Name</label>
+                <input type="text" id="name" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
             </div>
 
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-500 uppercase">Price ($)</label>
-                    <input type="number" id="price" step="0.01" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Date Purchased</label>
+                    <input type="date" id="date" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Store</label>
+                    <input type="text" id="store" required placeholder="Target, Amazon, etc." class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Cost</label>
+                    <input type="number" id="cost" step="0.01" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Retail</label>
+                    <input type="number" id="retail" step="0.01" required class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:outline-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase">Quantity</label>
@@ -115,12 +124,21 @@
                     `<img src="${item.image}" class="w-10 h-10 object-cover rounded border">` : 
                     `<div class="w-10 h-10 bg-gray-100 border rounded flex items-center justify-center text-[10px] text-gray-400">None</div>`;
 
+                // Retail color successfully set to red-600
                 row.innerHTML = `
                     <td class="p-3 w-14">${imgTag}</td>
                     <td class="p-3">
                         <span class="font-bold text-gray-800 block">${item.name}</span>
-                        <span class="text-xs text-gray-400 block">Purchased: ${item.date}</span>
-                        <span class="text-xs font-semibold text-blue-600 block mt-0.5">$${parseFloat(item.price).toFixed(2)}</span>
+                        <div class="flex items-center gap-1.5 text-xs text-gray-400">
+                            <span>Purchased: ${item.date}</span>
+                            <span class="text-gray-300">•</span>
+                            <span>Store: ${item.store || 'N/A'}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs mt-0.5">
+                            <span class="text-gray-600 font-medium">Cost: ${parseFloat(item.cost || 0).toFixed(2)}</span>
+                            <span class="text-gray-300">|</span>
+                            <span class="text-red-600 font-semibold">Retail: ${parseFloat(item.retail || 0).toFixed(2)}</span>
+                        </div>
                     </td>
                     <td class="p-3 text-right font-mono font-bold text-gray-700">${item.qty}</td>
                     <td class="p-3">
@@ -140,20 +158,22 @@
             
             const id = document.getElementById('product-id').value;
             const name = document.getElementById('name').value;
-            const price = document.getElementById('price').value;
+            const cost = document.getElementById('cost').value;
+            const retail = document.getElementById('retail').value;
             const qty = document.getElementById('qty').value;
             const date = document.getElementById('date').value;
+            const store = document.getElementById('store').value;
 
             if (id) {
                 // Edit Entry
                 const idx = inventory.findIndex(item => item.id == id);
                 if (idx !== -1) {
                     const updatedImg = currentBase64Image || inventory[idx].image;
-                    inventory[idx] = { id: parseInt(id), name, price, qty, date, image: updatedImg };
+                    inventory[idx] = { id: parseInt(id), name, cost, retail, qty, date, store, image: updatedImg };
                 }
             } else {
                 // New Entry
-                inventory.push({ id: Date.now(), name, price, qty, date, image: currentBase64Image });
+                inventory.push({ id: Date.now(), name, cost, retail, qty, date, store, image: currentBase64Image });
             }
 
             localStorage.setItem('table_inventory', JSON.stringify(inventory));
@@ -168,9 +188,11 @@
 
             document.getElementById('product-id').value = item.id;
             document.getElementById('name').value = item.name;
-            document.getElementById('price').value = item.price;
+            document.getElementById('cost').value = item.cost || '';
+            document.getElementById('retail').value = item.retail || '';
             document.getElementById('qty').value = item.qty;
             document.getElementById('date').value = item.date;
+            document.getElementById('store').value = item.store || '';
             
             if (item.image) {
                 document.getElementById('image-preview').src = item.image;
@@ -184,7 +206,7 @@
             document.getElementById('form-title').innerText = "📝 Edit Item Mode";
             document.getElementById('submit-btn').innerText = "Update Item Details";
             document.getElementById('cancel-btn').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll up to the form on phone screens
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Remove row completely
